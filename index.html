@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ride & User Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans p-6">
+
+  <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-xl p-6">
+    <h1 class="text-3xl font-bold mb-6 text-center text-blue-600">Ride & User Dashboard</h1>
+
+    <div class="mb-8">
+      <h2 class="text-xl font-semibold mb-2">Rides</h2>
+      <button onclick="getRides()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">Load Rides</button>
+      <ul id="ridesList" class="mt-4 space-y-2"></ul>
+    </div>
+
+    <div>
+      <h2 class="text-xl font-semibold mb-2">Users</h2>
+      <button onclick="getUsers()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">Load Users</button>
+      <ul id="usersList" class="mt-4 space-y-2"></ul>
+    </div>
+  </div>
+
+  <script>
+    async function getRides() {
+      try {
+        const res = await fetch("http://localhost:3000/rides");
+        const rides = await res.json();
+        const list = document.getElementById("ridesList");
+        list.innerHTML = "";
+        rides.forEach(ride => {
+          const li = document.createElement("li");
+          li.className = "bg-blue-100 p-3 rounded shadow";
+          li.textContent = `🚗 Driver: ${ride.driver}, Destination: ${ride.destination}, Status: ${ride.status}`;
+          list.appendChild(li);
+        });
+      } catch (err) {
+        alert("Failed to load rides. Is the server running?");
+      }
+    }
+
+    async function getUsers() {
+      try {
+        const res = await fetch("http://localhost:3000/users");
+        const users = await res.json();
+        const list = document.getElementById("usersList");
+        list.innerHTML = "";
+        users.forEach(user => {
+          const li = document.createElement("li");
+          li.className = "bg-green-100 p-3 rounded shadow";
+          li.textContent = `👤 Name: ${user.name}, Email: ${user.email}, Status: ${user.status}`;
+          list.appendChild(li);
+        });
+      } catch (err) {
+        alert("Failed to load users. Is the server running?");
+      }
+    }
+  </script>
+
+</body>
+</html>

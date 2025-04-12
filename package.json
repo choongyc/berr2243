@@ -19,6 +19,8 @@
   },
   "homepage": "https://github.com/choongyc/berr2243#readme",
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "mongodb": "^6.15.0"
   }
 }
