@@ -1,19 +1,14 @@
 const express = require("express");
-const { MongoClient, ObjectId } = require("mongodb"); 
+const { MongoClient, ObjectId } = require("mongodb");
 const cors = require("cors");
 
-const port = 3000;
 const app = express();
+const port = 3000;
 
 app.use(cors());
 app.use(express.json());
 
-let db;
-let usersCollection;
-
-function dbCollection(name) {
-  return db.collection(name);
-}
+let db, usersCollection, ridesCollection;
 
 async function connectToMongoDB() {
   const uri = "mongodb://localhost:27017";
@@ -22,116 +17,118 @@ async function connectToMongoDB() {
   try {
     await client.connect();
     console.log("Connected to MongoDB!");
-
     db = client.db("testDB");
-    usersCollection = db.collection("users"); 
+    usersCollection = db.collection("users");
+    ridesCollection = db.collection("rides");
   } catch (err) {
-    console.error("Error:", err);
+    console.error("Error connecting to DB:", err);
   }
 }
 connectToMongoDB();
 
-// POST /rides - Create a new ride
+// Ride Registration
 app.post("/rides", async (req, res) => {
   try {
-    const result = await dbCollection("rides").insertOne(req.body);
+    const result = await ridesCollection.insertOne(req.body);
     res.status(201).json({ id: result.insertedId });
   } catch {
     res.status(400).json({ error: "Invalid ride data" });
   }
 });
 
-// GET /rides - Fetch all rides
+// User Registration
+app.post("/users", async (req, res) => {
+  try {
+    const result = await usersCollection.insertOne(req.body);
+    res.status(201).json({ id: result.insertedId });
+  } catch {
+    res.status(400).json({ error: "Invalid user data" });
+  }
+});
+
+// User View Rides
 app.get("/rides", async (req, res) => {
   try {
-    const rides = await dbCollection("rides").find().toArray();
+    const rides = await ridesCollection.find().toArray();
+    if (rides.length === 0) {
+      return res.status(404).json({ error: "No rides found" });
+    }
     res.status(200).json(rides);
   } catch {
     res.status(500).json({ error: "Failed to fetch rides" });
   }
 });
 
-// PATCH /rides/:id - Update ride status
-app.patch("/rides/:id", async (req, res) => {
-  try {
-    const result = await dbCollection("rides").updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: { status: req.body.status } }
-    );
-
-    if (result.modifiedCount === 0) {
-      return res.status(404).json({ error: "Ride not found" });
-    }
-    res.status(200).json({ updated: result.modifiedCount });
-  } catch {
-    //Handle invalid ID format or DB errors
-    res.status(400).json({ error: "Invalid ride ID or data" });
-  }
-});
-
-// DELETE /rides/:id - Cancel a ride
-app.delete("/rides/:id", async (req, res) => {
-  try {
-    const result = await dbCollection("rides").deleteOne(
-        { _id: new ObjectId(req.params.id) }
-    );
-
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ error: "Ride not found" });
-    }
-    res.status(200).json({ deleted: result.deletedCount });
-  } catch {
-    res.status(400).json({ error: "Invalid ride ID" });
-  }
-});
-
-// POST /users - Create a new user
-app.post("/users", async (req, res) => {
-  try {
-    const result = await usersCollection.insertOne(req.body);
-    res.status(201).json({ insertedId: result.insertedId });
-  } catch {
-    res.status(400).json({ error: "Invalid user data" });
-  }
-});
-
-// GET /users - Get all users
+// View Users (Admin)
 app.get("/users", async (req, res) => {
   try {
     const users = await usersCollection.find().toArray();
+    if (users.length === 0) {
+      return res.status(404).json({ error: "No users found" });
+    }
     res.status(200).json(users);
   } catch {
     res.status(500).json({ error: "Failed to fetch users" });
   }
 });
 
-// PATCH /users/:id - Update user status
-app.patch("/users/:id", async (req, res) => {
+// Update Ride Status
+app.patch("/drivers/:id/status", async (req, res) => {
   try {
-    const id = new ObjectId(req.params.id);
-    const result = await usersCollection.updateOne({ _id: id }, { $set: req.body });
+    const result = await ridesCollection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { status: req.body.status } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: "Ride not found" });
+    }
+    res.status(200).json({ updated: result.modifiedCount });
+  } catch {
+    res.status(400).json({ error: "Invalid ride ID or data" });
+  }
+});
+
+// Update User Status
+app.patch("/users/:id/status", async (req, res) => {
+  try {
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { status: req.body.status } }
+    );
 
     if (result.matchedCount === 0) {
       return res.status(404).json({ error: "User not found" });
     }
-
-    res.status(200).json(result);
+    res.status(200).json({ updated: result.modifiedCount });
   } catch {
-    res.status(400).json({ error: "Invalid user ID" });
+    res.status(400).json({ error: "Invalid user ID or data" });
   }
 });
 
-// DELETE /users/:id - Cancel a user
-app.delete("/users/:id", async (req, res) => {
+// Delete Ride (Admin)
+app.delete("/admin/rides/:id", async (req, res) => {
   try {
-    const id = new ObjectId(req.params.id);
-    const result = await usersCollection.deleteOne({ _id: id });
+    const result = await ridesCollection.deleteOne({ _id: new ObjectId(req.params.id) });
 
     if (result.deletedCount === 0) {
-      return res.status(404).json({ error: "User not found or already deleted" });
+      return res.status(403).json({ error: "Ride not found or deletion not allowed" });
     }
+    res.status(204).send(); // No Content
+  } catch {
+    res.status(400).json({ error: "Invalid ride ID" });
+  }
+});
 
-    res.status(200).json(result);
+// Delete User (Admin)
+app.delete("/admin/users/:id", async (req, res) => {
+  try {
+    const result = await usersCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+
+    if (result.deletedCount === 0) {
+      return res.status(403).json({ error: "User not found or deletion not allowed" });
+    }
+    res.status(204).send(); // No Content
   } catch {
     res.status(400).json({ error: "Invalid user ID" });
   }
