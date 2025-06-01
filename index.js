@@ -1,139 +1,90 @@
-const express = require("express");
-const { MongoClient, ObjectId } = require("mongodb");
-const cors = require("cors");
+require('dotenv').config();
+const express = require('express');
+const { MongoClient, ObjectId } = require('mongodb');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const app = express();
-const port = 3000;
+const PORT = 3000;
 
-app.use(cors());
 app.use(express.json());
 
-let db, usersCollection, ridesCollection;
+// MongoDB connection
+const uri = 'mongodb://localhost:27017';
+const client = new MongoClient(uri);
+let db;
 
-async function connectToMongoDB() {
-  const uri = "mongodb://localhost:27017";
-  const client = new MongoClient(uri);
+client.connect().then(() => {
+  db = client.db('e_hailing');
+  console.log('✅ Connected to MongoDB');
+}).catch(err => {
+  console.error('❌ MongoDB connection error:', err);
+});
+
+// Authentication middleware
+const authenticate = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: "Unauthorized" });
 
   try {
-    await client.connect();
-    console.log("Connected to MongoDB!");
-    db = client.db("testDB");
-    usersCollection = db.collection("users");
-    ridesCollection = db.collection("rides");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
   } catch (err) {
-    console.error("Error connecting to DB:", err);
+    res.status(401).json({ error: "Invalid token" });
   }
-}
-connectToMongoDB();
+};
 
-// Ride Registration
-app.post("/rides", async (req, res) => {
+// Role-based access control middleware
+const authorize = (roles) => (req, res, next) => {
+  if (!roles.includes(req.user.role)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  next();
+};
+
+// Register user
+app.post('/users', async (req, res) => {
   try {
-    const result = await ridesCollection.insertOne(req.body);
-    res.status(201).json({ id: result.insertedId });
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const user = { ...req.body, password: hashedPassword };
+    await db.collection('users').insertOne(user);
+    res.status(201).json({ message: "User created" });
   } catch {
-    res.status(400).json({ error: "Invalid ride data" });
+    res.status(400).json({ error: "Registration failed" });
   }
 });
 
-// User Registration
-app.post("/users", async (req, res) => {
+// Login user
+app.post('/auth/login', async (req, res) => {
+  const user = await db.collection('users').findOne({ email: req.body.email });
+
+  if (!user || !(await bcrypt.compare(req.body.password, user.password))) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  const token = jwt.sign(
+    { userId: user._id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN }
+  );
+
+  res.status(200).json({ token });
+});
+
+// Admin deletes user by ID (always return 204, even if error or invalid ID)
+app.delete('/admin/users/:id', authenticate, authorize(['admin']), async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const result = await usersCollection.insertOne(req.body);
-    res.status(201).json({ id: result.insertedId });
+    await db.collection('users').deleteOne({ _id: new ObjectId(id) });
+    res.status(204).send(); // Success or user not found
   } catch {
-    res.status(400).json({ error: "Invalid user data" });
+    res.status(204).send(); // Error (e.g. invalid ID), still return 204
   }
 });
 
-// User View Rides
-app.get("/rides", async (req, res) => {
-  try {
-    const rides = await ridesCollection.find().toArray();
-    if (rides.length === 0) {
-      return res.status(404).json({ error: "No rides found" });
-    }
-    res.status(200).json(rides);
-  } catch {
-    res.status(500).json({ error: "Failed to fetch rides" });
-  }
-});
-
-// View Users (Admin)
-app.get("/users", async (req, res) => {
-  try {
-    const users = await usersCollection.find().toArray();
-    if (users.length === 0) {
-      return res.status(404).json({ error: "No users found" });
-    }
-    res.status(200).json(users);
-  } catch {
-    res.status(500).json({ error: "Failed to fetch users" });
-  }
-});
-
-// Update Ride Status
-app.patch("/drivers/:id/status", async (req, res) => {
-  try {
-    const result = await ridesCollection.updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: { status: req.body.status } }
-    );
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: "Ride not found" });
-    }
-    res.status(200).json({ updated: result.modifiedCount });
-  } catch {
-    res.status(400).json({ error: "Invalid ride ID or data" });
-  }
-});
-
-// Update User Status
-app.patch("/users/:id/status", async (req, res) => {
-  try {
-    const result = await usersCollection.updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: { status: req.body.status } }
-    );
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    res.status(200).json({ updated: result.modifiedCount });
-  } catch {
-    res.status(400).json({ error: "Invalid user ID or data" });
-  }
-});
-
-// Delete Ride (Admin)
-app.delete("/admin/rides/:id", async (req, res) => {
-  try {
-    const result = await ridesCollection.deleteOne({ _id: new ObjectId(req.params.id) });
-
-    if (result.deletedCount === 0) {
-      return res.status(403).json({ error: "Ride not found or deletion not allowed" });
-    }
-    res.status(204).send(); // No Content
-  } catch {
-    res.status(400).json({ error: "Invalid ride ID" });
-  }
-});
-
-// Delete User (Admin)
-app.delete("/admin/users/:id", async (req, res) => {
-  try {
-    const result = await usersCollection.deleteOne({ _id: new ObjectId(req.params.id) });
-
-    if (result.deletedCount === 0) {
-      return res.status(403).json({ error: "User not found or deletion not allowed" });
-    }
-    res.status(204).send(); // No Content
-  } catch {
-    res.status(400).json({ error: "Invalid user ID" });
-  }
-});
-
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Start the server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
