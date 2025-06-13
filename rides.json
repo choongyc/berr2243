@@ -1,0 +1,26 @@
+[
+  {
+    "customerId": { "$oid": "60d0fe4f5311236168a109ca" },
+    "driverId": { "$oid": "60d0fe4f5311236168a10000" },
+    "pickupLocation": { "lat": 0, "lng": 0 },
+    "destination": { "lat": 7, "lng": 10 },
+    "status": "completed",
+    "fare": 20.25
+  },
+  {
+    "customerId": { "$oid": "60d0fe4f5311236168a109ca" },
+    "driverId": { "$oid": "60d0fe4f5311236168a10001" },
+    "pickupLocation": { "lat": 0, "lng": 0 },
+    "destination": { "lat": 5.7, "lng": 6.3 },
+    "status": "completed",
+    "fare": 17.55
+  },
+  {
+    "customerId": { "$oid": "60d0fe4f5311236168a109cb" },
+    "driverId": { "$oid": "60d0fe4f5311236168a10002" },
+    "pickupLocation": { "lat": 0, "lng": 0 },
+    "destination": { "lat": 6.93, "lng": 6.93 },
+    "status": "completed",
+    "fare": 18.75
+  }
+]

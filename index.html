@@ -1,63 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Ride & User Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Passenger Analytics Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 font-sans p-6">
-
-  <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-xl p-6">
-    <h1 class="text-3xl font-bold mb-6 text-center text-blue-600">Ride & User Dashboard</h1>
-
-    <div class="mb-8">
-      <h2 class="text-xl font-semibold mb-2">Rides</h2>
-      <button onclick="getRides()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">Load Rides</button>
-      <ul id="ridesList" class="mt-4 space-y-2"></ul>
-    </div>
-
-    <div>
-      <h2 class="text-xl font-semibold mb-2">Users</h2>
-      <button onclick="getUsers()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">Load Users</button>
-      <ul id="usersList" class="mt-4 space-y-2"></ul>
-    </div>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-4xl bg-white rounded-2xl shadow-lg p-8">
+    <h1 class="text-3xl font-bold text-center text-indigo-700 mb-6">📊 Passenger Ride Analytics</h1>
+    <table class="min-w-full table-auto border-collapse border border-gray-200">
+      <thead>
+        <tr class="bg-indigo-600 text-white">
+          <th class="py-3 px-4 text-left">#</th>
+          <th class="py-3 px-4 text-left">Name</th>
+          <th class="py-3 px-4 text-left">Total Rides</th>
+          <th class="py-3 px-4 text-left">Total Fare (RM)</th>
+          <th class="py-3 px-4 text-left">Average Distance</th>
+        </tr>
+      </thead>
+      <tbody id="analyticsTable" class="text-gray-700">
+        <!-- Data rows go here -->
+      </tbody>
+    </table>
   </div>
 
   <script>
-    async function getRides() {
+    async function fetchData() {
       try {
-        const res = await fetch("http://localhost:3000/rides");
-        const rides = await res.json();
-        const list = document.getElementById("ridesList");
-        list.innerHTML = "";
-        rides.forEach(ride => {
-          const li = document.createElement("li");
-          li.className = "bg-blue-100 p-3 rounded shadow";
-          li.textContent = `🚗 Driver: ${ride.driver}, Destination: ${ride.destination}, Status: ${ride.status}`;
-          list.appendChild(li);
+        const response = await fetch("http://localhost:3000/analytics/passengers");
+        const data = await response.json();
+        const table = document.getElementById("analyticsTable");
+
+        data.forEach((item, index) => {
+          const row = document.createElement("tr");
+          row.className = index % 2 === 0 ? "bg-white" : "bg-gray-50";
+          row.innerHTML = `
+            <td class="py-2 px-4 font-medium">${index + 1}</td>
+            <td class="py-2 px-4">${item.name}</td>
+            <td class="py-2 px-4">${item.totalRides}</td>
+            <td class="py-2 px-4">RM ${item.totalFare.toFixed(2)}</td>
+            <td class="py-2 px-4">${item.avgDistance}</td>
+          `;
+          table.appendChild(row);
         });
-      } catch (err) {
-        alert("Failed to load rides. Is the server running?");
+      } catch (error) {
+        console.error("Failed to fetch analytics:", error);
       }
     }
 
-    async function getUsers() {
-      try {
-        const res = await fetch("http://localhost:3000/users");
-        const users = await res.json();
-        const list = document.getElementById("usersList");
-        list.innerHTML = "";
-        users.forEach(user => {
-          const li = document.createElement("li");
-          li.className = "bg-green-100 p-3 rounded shadow";
-          li.textContent = `👤 Name: ${user.name}, Email: ${user.email}, Status: ${user.status}`;
-          list.appendChild(li);
-        });
-      } catch (err) {
-        alert("Failed to load users. Is the server running?");
-      }
-    }
+    fetchData();
   </script>
-
 </body>
 </html>

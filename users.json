@@ -1,0 +1,18 @@
+[
+  {
+    "_id": { "$oid": "60d0fe4f5311236168a109ca" },
+    "name": "Alice",
+    "email": "alice@mail.com",
+    "password": "hashedpwd1",
+    "role": "passenger",
+    "createdAt": { "$date": "2024-01-01T00:00:00Z" }
+  },
+  {
+    "_id": { "$oid": "60d0fe4f5311236168a109cb" },
+    "name": "Bob",
+    "email": "bob@mail.com",
+    "password": "hashedpwd2",
+    "role": "passenger",
+    "createdAt": { "$date": "2024-01-02T00:00:00Z" }
+  }
+]
